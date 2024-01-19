@@ -9,9 +9,8 @@ open import Data.List.Base hiding (fromMaybe; concat)
 open import Data.List.Sort
 open import Data.Nat.Base hiding (_+_; _*_; _≤ᵇ_)
 open import Data.Integer.Base as ℤ using (ℤ; +_; +0; +[1+_]; -[1+_])
-open import Data.Rational.Base
-open import Data.Rational.Unnormalised.Base using (_≢0)
-open import Data.String hiding (head; _≟_)
+open import Data.Rational.Base as ℚ
+open import Data.String hiding (head; _≟_; map)
 open import Data.String.Base using (concat)
 open import Function.Base using (_∘_)
 open import Agda.Builtin.Sigma
@@ -21,7 +20,7 @@ open import Relation.Binary.PropositionalEquality.Core using (_≡_; _≢_; cong
 module actus_s
   {a ℓ₁ ℓ₂} (O : DecTotalOrder a ℓ₁ ℓ₂) (_+D_ : DecTotalOrder.Carrier O → DecTotalOrder.Carrier O → DecTotalOrder.Carrier O)
   (yearFrac : DecTotalOrder.Carrier O → DecTotalOrder.Carrier O → ℚ)
-  (yearDist : ∀ a b → a ≢ b → ℤ.∣ ↥ yearFrac a b ∣ ≢0)
+  (yearDist : ∀ a b → a ≢ b → ℚ.NonZero (yearFrac a b))
   (O^rf : String → DecTotalOrder.Carrier O → ℚ)
   (O^ev : String → DecTotalOrder.Carrier O → ℚ) where
 
@@ -268,9 +267,9 @@ State Transition Function:
 PAM_PP_TRANS :
   (Maybe String × String × FEB × ℚ × ℚ) →
   (t_FP_minus : D) → (t_FP_plus : D) → (d : D) → 
-  ℤ.∣ ↥ yearFrac t_FP_minus t_FP_plus ∣ ≢0 →
+  .⦃ ℚ.NonZero (yearFrac t_FP_minus t_FP_plus) ⦄ →
   ContractState → ContractState × ℚ
-PAM_PP_TRANS (CURS , CUR , feb , FER , RCNTRL) t_FP_minus t_FP_plus d nz st =
+PAM_PP_TRANS (CURS , CUR , feb , FER , RCNTRL) t_FP_minus t_FP_plus d st =
   let
     Y_Sd_d = yearFrac (sd st) d
     f_O_ev = O^ev "CID, PP" d
@@ -278,7 +277,7 @@ PAM_PP_TRANS (CURS , CUR , feb , FER , RCNTRL) t_FP_minus t_FP_plus d nz st =
     Feac' = if does (FEB-≟ feb FEB_N) then
               feac st + Y_Sd_d * nt st * FER
             else
-              _÷_ (yearFrac t_FP_minus d) (yearFrac t_FP_minus t_FP_plus) {nz} * RCNTRL * FER
+              _÷_ (yearFrac t_FP_minus d) (yearFrac t_FP_minus t_FP_plus) * RCNTRL * FER
     Nt' = nt st - f_O_ev
   in
     record st { ipac = Ipac' ; feac = Feac' ; nt = Nt' ; sd = d } , X CURS CUR d * f_O_ev
@@ -293,7 +292,7 @@ createTransition TFPMinus TFPPlus neq dat d  with TFPMinus | TFPPlus
 ... | _        | nothing   = nothing
 ... | just tFPminus | just tFPplus = 
     let nz = yearDist tFPminus tFPplus λ x → neq (cong just x) -- you need to provide a proof here that t_FP_minus ≠ t_FP_plus
-    in just (d , PAM_PP_TRANS dat tFPminus tFPplus d nz)
+    in just (d , PAM_PP_TRANS dat tFPminus tFPplus d ⦃ nz ⦄)
 
 PAM_PP_SCHEDULE :
   (Maybe String × String × FEB × ℚ × ℚ) → 
